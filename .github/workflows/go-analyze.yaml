@@ -1,0 +1,109 @@
+name: go-analyze
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        required: false
+        type: string
+        default: "^1.23"
+      working-directory:
+        required: false
+        type: string
+      test-timeout:
+        required: false
+        type: string
+        default: 5m
+
+permissions:
+  # Required: allow read access to the content for analysis.
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  pull-requests: read
+  # Optional: allow write access to checks to allow the action to annotate code in the PR.
+  checks: write
+  # Optional: allow write access to security events to upload SARIF results.
+  security-events: write
+  # Optional: allow read access to actions to allow the action to read the workflow file.
+  actions: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/cicd
+          path: ${{ github.repository_owner }}/cicd
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          version: v1.60.3
+          # only-new-issues: true
+          args: |
+            --config="${{ github.workspace }}/${{ github.repository_owner }}/cicd/.golangci.yaml" \
+            --output-format=sarif:results.sarif
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+          category: golangci-lint
+          working-directory: ${{ inputs.working-directory }}
+
+  lint-soft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/cicd
+          path: ${{ github.repository_owner }}/cicd
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          args: |
+            --config="${{ github.workspace }}/${{ github.repository_owner }}/cicd/.golangci-soft.yaml" \
+            --issues-exit-code=0
+          only-new-issues: true
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
+          check-latest: true
+      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+        working-directory: ${{ inputs.working-directory }}
+      - run: govulncheck ./...
+        working-directory: ${{ inputs.working-directory }}
+
+  codeql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+        with:
+          working-directory: ${{ inputs.working-directory }}
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          working-directory: ${{ inputs.working-directory }}

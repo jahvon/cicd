@@ -1,0 +1,49 @@
+name: lint-files
+on:
+  workflow_call:
+
+jobs:
+  yaml-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/cicd
+          path: ${{ github.repository_owner }}/cicd
+      - name: Install yamllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yamllint
+      - uses: tj-actions/changed-files@v45
+        id: changed-files
+        with:
+          files: |
+            **/*.yaml
+            **/*.yml
+            **/*.flow
+          separator: " "
+      - name: Lint YAML files
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: yamllint -c ${{ github.workspace }}/${{ github.repository_owner }}/cicd/.yamllint.yaml ${{ steps.changed-files.outputs.all_changed_files }}
+
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/cicd
+          path: ${{ github.repository_owner }}/cicd
+      - uses: tj-actions/changed-files@v45
+        id: changed-files
+        with:
+          files: '**/*.md'
+          separator: ","
+      - name: Lint Markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v17
+        if: steps.changed-files.outputs.any_changed == 'true'
+        with:
+          globs: ${{ steps.changed-files.outputs.all_changed_files }}
+          separator: ","
+          config: ${{ github.workspace }}/${{ github.repository_owner }}/cicd/.markdownlint.yaml

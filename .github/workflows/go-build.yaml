@@ -1,0 +1,71 @@
+name: go-build
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        required: false
+        type: string
+        default: "^1.23"
+      working-directory:
+        required: false
+        type: string
+      test-timeout:
+        required: false
+        type: string
+        default: 5m
+      codecov-enabled:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GO111MODULE: "on"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+      - name: Download Go modules
+        run: go mod download
+        working-directory: ${{ inputs.working-directory }}
+      - name: Build
+        run: go build ./...
+        working-directory: ${{ inputs.working-directory }}
+      - name: Test
+        run: go test ./... -failfast -race -timeout ${{ inputs.test-timeout }}
+        working-directory: ${{ inputs.working-directory }}
+
+  coverage:
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: "on"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+      - name: Download Go modules
+        run: go mod download
+        working-directory: ${{ inputs.working-directory }}
+      - name: Test
+        run: go test -failfast -race -coverpkg=./... -covermode=atomic -coverprofile=coverage.txt ./... -timeout ${{ inputs.test-timeout }}
+        working-directory: ${{ inputs.working-directory }}
+      - name: Upload coverage
+        if: ${{ inputs.codecov-enabled }}
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.txt
+          token: ${{ secrets.CODECOV_TOKEN }}
+          working-directory: ${{ inputs.working-directory }}
+          fail_ci_if_error: false
