@@ -63,7 +63,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
       - name: Upload coverage
         if: ${{ inputs.codecov-enabled }}
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage.txt
           token: ${{ secrets.CODECOV_TOKEN }}
