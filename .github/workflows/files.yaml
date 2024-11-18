@@ -41,7 +41,7 @@ jobs:
           files: '**/*.md'
           separator: ","
       - name: Lint Markdown files
-        uses: DavidAnson/markdownlint-cli2-action@v17
+        uses: DavidAnson/markdownlint-cli2-action@v18
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           globs: ${{ steps.changed-files.outputs.all_changed_files }}
